@@ -19,7 +19,6 @@ export default function Dashboard() {
                         </li>
                     </ul>
                 </div>
-
                 {/* Main Content */}
                 <div className="col-md-9 col-lg-10 p-4">
                     <div className="row">
@@ -27,9 +26,7 @@ export default function Dashboard() {
                         <div className="col-12 mb-4">
                             <div className="card bg-primary text-white">
                                 <div className="card-body d-flex align-items-center">
-                                    <img
-                                        src="URL_ADDRESS.placeholder.com/150x150"
-                                        className="rounded-circle me-3"
+                                    <img src="https://ui-avatars.com/api/?name=${URL_ADDRESS.placeholder.com/150x150 " className="rounded-circle me-3"
                                         alt="Profile"
                                         style={{ width: "60px", height: "60px" }}
                                     />
@@ -41,7 +38,6 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Stat Cards */}
                         <div className="col-md-4 mb-4">
                             <div className="card bg-success text-white">
                                 <div className="card-body">

@@ -2,11 +2,17 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '../../constant'
 import axios from 'axios'
+import Modal from '../../components/Modal'
 
 export default function StuffIndex() {
     const [stuffs, setStuffs] = useState([])
     const [error, setError] = useState(null)
     const [isLoaded, setIsLoaded] = useState(false)
+    const [isOpen, setIsOpen] = useState(false)
+    const [formData, setFormData] = useState({
+        name: '',
+        type: '',
+    })
     const navigate = useNavigate()
     const token = localStorage.getItem('access_token')
 
@@ -17,7 +23,6 @@ export default function StuffIndex() {
             }
         })
             .then(res => {
-                // Ensure we're setting an array
                 console.log(res.data)
                 setStuffs(res.data.data)
                 setIsLoaded(true)
@@ -28,23 +33,15 @@ export default function StuffIndex() {
             })
     }, [token])
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this category?')) {
-            axios.delete(`${API_URL}/stuff/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-                .then(() => {
-                    setStuffs(prevStuffs => prevStuffs.filter(s => s.id !== id))
-                })
-                .catch(err => setError(err))
-        }
+    const handleSubmit = (e) => {
+        e.preventDefault()
+        console.log(formData)
+        setIsOpen(false)
     }
 
     if (error) {
         return (
-            <div className="alert alert-danger" role="alert">
+            <div className="alert alert-danger my-3 me-3" role="alert">
                 Error: {error.message}
             </div>
         )
@@ -68,7 +65,7 @@ export default function StuffIndex() {
                         <h1>Categories List</h1>
                         <button
                             className="btn btn-primary"
-                            onClick={() => navigate('/stuff/create')}
+                            onClick={() => setIsOpen(true)}
                         >
                             <i className="bi bi-plus-circle me-2"></i>
                             Add New Category
@@ -104,9 +101,7 @@ export default function StuffIndex() {
                                                         <td>{index + 1}</td>
                                                         <td>{stuff.name}</td>
                                                         <td className="text-center">
-                                                            <span>
-                                                                {stuff.stuff_stock?.total_available || 0}
-                                                            </span>
+                                                            {stuff.stuff_stock?.total_available || 0}
                                                         </td>
                                                         <td className="text-center">
                                                             <span className={stuff.stuff_stock?.total_defec < 3 ? 'text-danger' : ''}>
@@ -125,7 +120,7 @@ export default function StuffIndex() {
                                                             </button>
                                                             <button
                                                                 className="btn btn-sm btn-danger me-2"
-                                                                onClick={() => handleDelete(stuff.id)}
+                                                                onClick={() => ""}
                                                             >
                                                                 <i className="bi bi-trash"></i>
                                                             </button>
@@ -141,6 +136,30 @@ export default function StuffIndex() {
                     </div>
                 </div>
             </div>
+
+            <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={"Add New Category"}>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label className="form-label">Name <span className="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            className="form-control mb-2"
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            required
+                        />
+                        <label className="form-label">Type</label>
+                        <select
+                            className='form-select'
+                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        >
+                            <option value="HTL/KLN">HTL/KLN</option>
+                            <option value="Lab">Lab</option>
+                            <option value="Sarpras">Sarpras</option>
+                        </select>
+                    </div>
+                    <button type='submit' className='btn btn-primary mt-3'>Add</button>
+                </form>
+            </Modal>
         </>
     )
 }
