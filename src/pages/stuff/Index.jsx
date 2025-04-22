@@ -62,7 +62,6 @@ export default function StuffIndex() {
         setModalOpen(true)
     }
 
-    // Remove headers from confirmDelete
     const confirmDelete = () => {
         axios.delete(`${API_URL}/stuffs/${deleteId}`)
             .then(() => {

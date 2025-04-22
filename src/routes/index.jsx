@@ -7,6 +7,7 @@ import Dashboard from "../pages/Dashboard";
 import PrivatePage from "../pages/middleware/PrivatePage";
 import PublicPage from "../pages/middleware/PublicPage";
 import StuffIndex from "../pages/stuff/Index";
+import InboundIndex from "../pages/stuff/inbound";
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +39,10 @@ export const router = createBrowserRouter([
           {
             path: "stuff",
             element: <StuffIndex />
+          },
+          {
+            path: "inbound-stuff",
+            element: <InboundIndex />
           }
         ]
       }

@@ -50,7 +50,13 @@ export default function Navbar() {
                 <li className="nav-item">
                   <Link to="/stuff" className="nav-link px-3 py-2">
                     <i className="bi bi-card-list me-1"></i>
-                    Categories
+                    Stuffs
+                  </Link>
+                </li>
+                <li className="nav-item">
+                  <Link to="/inbound-stuff" className="nav-link px-3 py-2">
+                    <i className="bi bi-android me-1"></i>
+                    Inbound
                   </Link>
                 </li>
                 <li className="nav-item">
