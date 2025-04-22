@@ -1,19 +1,38 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-// import './index.css'
-// import App from './App.jsx'
-// import bootstrap
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
+import 'bootstrap-icons/font/bootstrap-icons.css'
 import { RouterProvider } from 'react-router-dom'
 import { router } from './routes/index.jsx'
+import axios from 'axios'
+
+axios.interceptors.request.use(
+  function (config) {
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  function (error) {
+    return Promise.reject(error)
+  }
+)
+
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      localStorage.clear()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {/* <App /> */} 
-
-    <RouterProvider router={router}>
-
-    </RouterProvider>
-  </StrictMode>,
+    <RouterProvider router={router} />
+  </StrictMode>
 )

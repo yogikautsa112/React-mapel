@@ -21,16 +21,13 @@ export default function StuffIndex() {
     const [isModalInbound, setIsModalInbound] = useState(false)
 
     const navigate = useNavigate()
-    const token = localStorage.getItem('access_token')
 
     useEffect(() => {
         fetchStuffs()
     }, [])
 
     const fetchStuffs = () => {
-        axios.get(`${API_URL}/stuffs`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        axios.get(`${API_URL}/stuffs`)
             .then(res => setStuffs(res.data.data))
             .catch(setError)
             .finally(() => setLoading(false))
@@ -49,12 +46,7 @@ export default function StuffIndex() {
             ? `${API_URL}/stuffs/${formData.id}`
             : `${API_URL}/stuffs`
 
-        axios[method](url, formData, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
+        axios[method](url, formData)
             .then(() => {
                 fetchStuffs()
                 closeModal()
@@ -70,10 +62,9 @@ export default function StuffIndex() {
         setModalOpen(true)
     }
 
+    // Remove headers from confirmDelete
     const confirmDelete = () => {
-        axios.delete(`${API_URL}/stuffs/${deleteId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        axios.delete(`${API_URL}/stuffs/${deleteId}`)
             .then(() => {
                 fetchStuffs()
                 closeModal()
@@ -92,7 +83,6 @@ export default function StuffIndex() {
         setModalOpen(true)
     }
 
-    // Fix the handleInbound function to pass the entire stuff object
     const handleInbound = (stuff) => {
         setFormInbound({
             stuff_id: stuff.id,
@@ -102,7 +92,7 @@ export default function StuffIndex() {
         setIsModalInbound(true)
     }
 
-    // Fix the handleSubmitInbound function
+    // Update handleSubmitInbound to only include Content-Type header
     const handleSubmitInbound = (e) => {
         e.preventDefault()
         const formData = new FormData()
@@ -112,7 +102,6 @@ export default function StuffIndex() {
 
         axios.post(`${API_URL}/inbound-stuffs`, formData, {
             headers: {
-                Authorization: `Bearer ${token}`,
                 'Content-Type': 'multipart/form-data'
             }
         })
@@ -188,7 +177,7 @@ export default function StuffIndex() {
                                             <tr>
                                                 <th rowSpan={2}>No</th>
                                                 <th rowSpan={2}>Name</th>
-                                                <th colSpan={2}>Stock</th>
+                                                <th className='text-center' colSpan={2}>Stock</th>
                                                 <th rowSpan={2}>Action</th>
                                             </tr>
                                             <tr>
