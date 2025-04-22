@@ -4,11 +4,11 @@ import { Outlet } from 'react-router-dom'
 
 export default function Template() {
     return (
-        <div className="min-vh-100 d-flex flex-column p-0">
+        <div className="d-flex flex-column vh-100">
             <Navbar />
-            <div className="flex-grow-1 bg-light w-100">
+            <main className="flex-grow-1 bg-light">
                 <Outlet />
-            </div>
+            </main>
             <footer className="bg-dark text-white py-3">
                 <div className="container-fluid text-center">
                     <small>&copy; 2024 Inventaris System. All rights reserved.</small>

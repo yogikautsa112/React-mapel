@@ -13,6 +13,12 @@ export default function StuffIndex() {
     const [mode, setMode] = useState('create') // 'create' | 'edit' | 'delete'
     const [formData, setFormData] = useState({ id: null, name: '', type: '' })
     const [deleteId, setDeleteId] = useState(null)
+    const [formInbound, setFormInbound] = useState({
+        stuff_id: "",
+        total: 0,
+        proof_file: null
+    })
+    const [isModalInbound, setIsModalInbound] = useState(false)
 
     const navigate = useNavigate()
     const token = localStorage.getItem('access_token')
@@ -86,6 +92,39 @@ export default function StuffIndex() {
         setModalOpen(true)
     }
 
+    // Fix the handleInbound function to pass the entire stuff object
+    const handleInbound = (stuff) => {
+        setFormInbound({
+            stuff_id: stuff.id,
+            total: 0,
+            proof_file: null
+        })
+        setIsModalInbound(true)
+    }
+
+    // Fix the handleSubmitInbound function
+    const handleSubmitInbound = (e) => {
+        e.preventDefault()
+        const formData = new FormData()
+        formData.append('stuff_id', formInbound.stuff_id)
+        formData.append('total', formInbound.total)
+        formData.append('proof_file', formInbound.proof_file)
+
+        axios.post(`${API_URL}/inbound-stuffs`, formData, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+            .then(() => {
+                fetchStuffs()
+                setIsModalInbound(false)
+                setFormInbound({ stuff_id: "", total: 0, proof_file: null })
+                setAlert('Stock Inbound added successfully')
+            })
+            .catch(err => handleRequestError(err, 'add inbound'))
+    }
+
     const closeModal = () => {
         setModalOpen(false)
         setFormData({ id: null, name: '', type: '' })
@@ -115,13 +154,14 @@ export default function StuffIndex() {
 
     return (
         <>
-            {alert && (
-                <div className="alert alert-success my-3 me-3" role="alert">
-                    {alert}
-                </div>
-            )}
-
             <div className="container mt-4">
+                {alert && (
+                    <div className="alert alert-success alert-dismissible fade show" role="alert">
+                        {alert}
+                        <button type="button" className="btn-close" onClick={() => setAlert('')} aria-label="Close"></button>
+                    </div>
+                )}
+
                 <div className="row mb-4">
                     <div className="col-12 d-flex justify-content-between align-items-center">
                         <h1>Categories List</h1>
@@ -175,7 +215,10 @@ export default function StuffIndex() {
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <button className="btn btn-sm btn-primary me-2">
+                                                            <button
+                                                                className="btn btn-sm btn-primary me-2"
+                                                                onClick={() => handleInbound(stuff)}
+                                                            >
                                                                 <i className="bi bi-plus"></i>
                                                             </button>
                                                             <button
@@ -210,8 +253,8 @@ export default function StuffIndex() {
                     mode === 'delete'
                         ? "Delete Category"
                         : mode === 'edit'
-                        ? "Edit Category"
-                        : "Add New Category"
+                            ? "Edit Category"
+                            : "Add New Category"
                 }
             >
                 {error && <div className="alert alert-danger">{error.message}</div>}
@@ -264,6 +307,52 @@ export default function StuffIndex() {
                     </form>
                 )}
             </Modal>
-        </> 
+
+            <Modal
+                isOpen={isModalInbound}
+                onClose={() => setIsModalInbound(false)}
+                title={`Add Stock Inbound`}
+            >
+                {error && <div className="alert alert-danger">{error.message}</div>}
+
+                <form onSubmit={handleSubmitInbound}>
+                    <div className="form-group">
+                        <label className="form-label">
+                            Add Quantity <span className="text-danger">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            name="total"
+                            className="form-control mb-3"
+                            value={formInbound.total}
+                            onChange={(e) => setFormInbound({ ...formInbound, total: e.target.value })}
+                            min="1"
+                            required
+                        />
+
+                        <label className="form-label">
+                            Proof File <span className="text-danger">*</span>
+                        </label>
+                        <input
+                            type="file"
+                            name="proof_file"
+                            className="form-control mb-3"
+                            onChange={(e) => setFormInbound({ ...formInbound, proof_file: e.target.files[0] })}
+                            accept="image/*,.pdf"
+                            required
+                        />
+
+                        <div className="d-flex gap-2">
+                            <button type="button" className="btn btn-secondary" onClick={() => setIsModalInbound(false)}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn btn-primary">
+                                Add Stock
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </Modal>
+        </>
     )
 }

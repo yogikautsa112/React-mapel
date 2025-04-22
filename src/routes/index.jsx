@@ -6,7 +6,7 @@ import Template from "../layouts/template";
 import Dashboard from "../pages/Dashboard";
 import PrivatePage from "../pages/middleware/PrivatePage";
 import PublicPage from "../pages/middleware/PublicPage";
-import StuffIndex from "../pages/stuff";
+import StuffIndex from "../pages/stuff/Index";
 
 export const router = createBrowserRouter([
   {

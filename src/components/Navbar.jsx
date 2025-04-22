@@ -54,8 +54,8 @@ export default function Navbar() {
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <button 
-                    className="nav-link btn btn-link px-3 py-2" 
+                  <button
+                    className="nav-link btn btn-link px-3 py-2"
                     onClick={logoutHandler}
                     style={{ border: 'none' }}
                   >
