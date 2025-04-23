@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { API_URL } from '../../../constant'
 import Modal from '../../../components/Modal'
@@ -13,25 +12,21 @@ export default function InboundIndex() {
     const [selectedInbound, setSelectedInbound] = useState(null)
     const [deleteLoading, setDeleteLoading] = useState(false)
 
-    const navigate = useNavigate()
-
     useEffect(() => {
         fetchStuffs()
     }, [])
-
+    
     const fetchStuffs = () => {
         setLoading(true)
         setError(null)
         axios.get(`${API_URL}/inbound-stuffs`)
-            .then(res => {
-                const data = res.data.data
-                setStuffs(data)
-            })
-            .catch(err => handleRequestError(err, 'fetch'))
-            .finally(() => setLoading(false))
+        .then(res => {
+            const data = res.data.data
+            setStuffs(data)
+        })
+        .catch(err => setError(err))
+        .finally(() => setLoading(false))
     }
-
-    console.log(stuffs)
 
     const handleDelete = (inbound) => {
         setSelectedInbound(inbound)
@@ -48,18 +43,9 @@ export default function InboundIndex() {
                 setAlert('Inbound record deleted successfully')
             })
             .catch(err => {
-                handleRequestError(err, 'delete')
+                setError(err)
                 setDeleteLoading(false)
             })
-    }
-
-    const handleRequestError = (err, action) => {
-        if (err.response?.status === 401) {
-            localStorage.clear()
-            navigate('/login')
-        } else {
-            setError({ message: err.response?.data?.message || `Failed to ${action} inbound record` })
-        }
     }
 
     if (loading) {
