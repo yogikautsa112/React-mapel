@@ -30,6 +30,10 @@ export const Lendings = () => {
                 setStuffs(res.data.data || [])
             })
             .catch(err => {
+                if(err.response?.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                }
                 console.error('Error fetching data:', err)
                 setError(err)
             })
