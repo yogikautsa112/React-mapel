@@ -3,44 +3,41 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { API_URL } from '../../constant'
 import Modal from '../../components/Modal'
-import * as XSLX from "xlsx"
+import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
 export default function StuffIndex() {
     const [stuffs, setStuffs] = useState([])
     const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
     const [alert, setAlert] = useState('')
     const [modalOpen, setModalOpen] = useState(false)
-    const [mode, setMode] = useState('create') // 'create' | 'edit' | 'delete'
-    const [formData, setFormData] = useState({ id: null, name: '', type: '' })
-    const [deleteId, setDeleteId] = useState(null)
-    const [formInbound, setFormInbound] = useState({
-        stuff_id: "",
-        total: 0,
-        proof_file: null
-    })
-    const [isModalInbound, setIsModalInbound] = useState(false)
+    const [isInboundModal, setInboundModal] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
+    const [formData, setFormData] = useState({ id: null, name: '', type: '' })
+    const [formInbound, setFormInbound] = useState({ stuff_id: '', total: 0, proof_file: null })
+    const [mode, setMode] = useState('create') // create | edit | delete
+    const [deleteId, setDeleteId] = useState(null)
+    const [error, setError] = useState(null)
 
     const navigate = useNavigate()
 
-    useEffect(() => {
-        fetchStuffs()
-    }, [])
+    useEffect(() => { fetchStuffs() }, [])
 
     const fetchStuffs = () => {
         setLoading(true)
         axios.get(`${API_URL}/stuffs`)
-            .then(res => {
-                console.log('API Response:', res.data)
-                setStuffs(res.data.data || [])
-            })
-            .catch(err => {
-                console.error('Error fetching data:', err)
-                setError(err)
-            })
+            .then(res => setStuffs(res.data.data || []))
+            .catch(err => handleError(err))
             .finally(() => setLoading(false))
+    }
+
+    const handleError = (err, action = 'process') => {
+        if (err.response?.status === 401) {
+            localStorage.clear()
+            navigate('/login')
+        } else {
+            setError({ message: err.response?.data?.message || `Failed to ${action}` })
+        }
     }
 
     const handleChange = (e) => {
@@ -50,19 +47,17 @@ export default function StuffIndex() {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        const isEditing = mode === 'edit'
-        const method = isEditing ? 'patch' : 'post'
-        const url = isEditing
-            ? `${API_URL}/stuffs/${formData.id}`
-            : `${API_URL}/stuffs`
+        const isEdit = mode === 'edit'
+        const method = isEdit ? 'patch' : 'post'
+        const url = `${API_URL}/stuffs${isEdit ? `/${formData.id}` : ''}`
 
         axios[method](url, formData)
             .then(() => {
                 fetchStuffs()
                 closeModal()
-                setAlert(`Category ${isEditing ? 'updated' : 'added'} successfully`)
+                setAlert(`Category ${isEdit ? 'updated' : 'added'} successfully`)
             })
-            .catch(err => handleRequestError(err, isEditing ? 'update' : 'add'))
+            .catch(err => handleError(err, isEdit ? 'update' : 'add'))
     }
 
     const handleDelete = (stuff) => {
@@ -79,52 +74,35 @@ export default function StuffIndex() {
                 closeModal()
                 setAlert('Category deleted successfully')
             })
-            .catch(err => handleRequestError(err, 'delete'))
+            .catch(err => handleError(err, 'delete'))
     }
 
     const handleEdit = (stuff) => {
-        setFormData({
-            id: stuff.id,
-            name: stuff.name,
-            type: stuff.type || ''
-        })
+        setFormData({ id: stuff.id, name: stuff.name, type: stuff.type || '' })
         setMode('edit')
         setModalOpen(true)
     }
 
     const handleInbound = (stuff) => {
-        setFormInbound({
-            stuff_id: stuff.id,
-            total: 0,
-            proof_file: null
-        })
-        setIsModalInbound(true)
+        setFormInbound({ stuff_id: stuff.id, total: 0, proof_file: null })
+        setInboundModal(true)
     }
 
     const handleSubmitInbound = (e) => {
         e.preventDefault()
-        const formData = new FormData()
-        formData.append('stuff_id', formInbound.stuff_id)
-        formData.append('total', formInbound.total)
-        formData.append('proof_file', formInbound.proof_file)
+        const form = new FormData()
+        form.append('stuff_id', formInbound.stuff_id)
+        form.append('total', formInbound.total)
+        form.append('proof_file', formInbound.proof_file)
 
-        axios.post(`${API_URL}/inbound-stuffs`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        })
+        axios.post(`${API_URL}/inbound-stuffs`, form)
             .then(() => {
                 fetchStuffs()
-                setIsModalInbound(false)
-                setFormInbound({ stuff_id: "", total: 0, proof_file: null })
+                setInboundModal(false)
                 setAlert('Stock Inbound added successfully')
             })
-            .catch(err => handleRequestError(err, 'add inbound'))
+            .catch(err => handleError(err, 'add inbound'))
     }
-
-    const filteredStuffs = stuffs.filter(stuff =>
-        stuff.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
 
     const closeModal = () => {
         setModalOpen(false)
@@ -134,263 +112,131 @@ export default function StuffIndex() {
         setError(null)
     }
 
-    const handleRequestError = (err, action) => {
-        if (err.response?.status === 401) {
-            localStorage.clear()
-            navigate('/login')
-        } else {
-            setError({ message: err.response?.data?.message || `Failed to ${action} category` })
-        }
-    }
-
     const exportExcel = () => {
-        const formData = stuffs.map((stuff, index) => ({
-            No: index + 1,
-            Title: stuff.name,
-            Type: stuff.type,
-            TotalAvailable: stuff.stuff_stock?.total_available || 0,
-            TotalDefec: stuff.stuff_stock?.total_defec || 0
-        }));
-
-        const worksheet = XSLX.utils.json_to_sheet(formData);
-        const workbook = XSLX.utils.book_new();
-        XSLX.utils.book_append_sheet(workbook, worksheet, "Categories");
-
-        // Generate buffer
-        const excelBuffer = XSLX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
-        // Create blob and save file
-        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(blob, 'categories.xlsx');
+        const data = stuffs.map((s, i) => ({
+            No: i + 1, Title: s.name, Type: s.type,
+            TotalAvailable: s.stuff_stock?.total_available || 0,
+            TotalDefec: s.stuff_stock?.total_defec || 0
+        }))
+        const sheet = XLSX.utils.json_to_sheet(data)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, sheet, "Categories")
+        const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+        saveAs(blob, 'categories.xlsx')
     }
 
+    const filtered = stuffs.filter(s =>
+        s.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
     if (loading) {
-        return (
-            <div className="d-flex justify-content-center mt-5">
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        )
+        return <div className="text-center mt-5"><div className="spinner-border" role="status" /></div>
     }
 
     return (
-        <>
-            <div className="container mt-4">
-                {alert && (
-                    <div className="alert alert-success alert-dismissible fade show" role="alert">
-                        {alert}
-                        <button type="button" className="btn-close" onClick={() => setAlert('')} aria-label="Close"></button>
-                    </div>
-                )}
-
-                <div className="row mb-4">
-                    <div className="col-15 d-flex justify-content-between align-items-center">
-                        <h1>Categories List</h1>
-                        <div className="d-flex">
-                            <button
-                                className="btn btn-primary me-2"
-                                onClick={() => {
-                                    setMode('create')
-                                    setModalOpen(true)
-                                }}
-                            >
-                                <i className="bi bi-plus-circle me-2"></i>
-                                Add New Category
-                            </button>
-                            <button className='btn btn-success' onClick={exportExcel}>Export</button>
-                        </div>
-                    </div>
+        <div className="container mt-4">
+            {alert && (
+                <div className="alert alert-success alert-dismissible fade show">
+                    {alert}
+                    <button className="btn-close" onClick={() => setAlert('')} />
                 </div>
+            )}
 
-                <div className="row mb-4">
-                    <div className="col-md-4">
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Search category..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <div className="row">
-                    <div className="col-12">
-                        <div className="card">
-                            <div className="card-body">
-                                <div className="table-responsive">
-                                    <table className="table table-striped">
-                                        <thead>
-                                            <tr>
-                                                <th rowSpan={2}>No</th>
-                                                <th rowSpan={2}>Name</th>
-                                                <th className='text-center' colSpan={2}>Stock</th>
-                                                <th rowSpan={2}>Action</th>
-                                            </tr>
-                                            <tr>
-                                                <th className="text-center">Available</th>
-                                                <th className="text-center">Defect</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredStuffs.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="5" className="text-center">No categories found</td>
-                                                </tr>
-                                            ) : (
-                                                filteredStuffs.map((stuff, index) => (
-                                                    <tr key={stuff.id}>
-                                                        <td>{index + 1}</td>
-                                                        <td>{stuff.name || '-'}</td>
-                                                        <td className="text-center">
-                                                            {stuff.stuff_stock?.total_available ?? "-"}
-                                                        </td>
-                                                        <td className="text-center">
-                                                            <span className={stuff.stuff_stock?.total_defec < 3 ? 'text-danger' : ''}>
-                                                                {stuff.stuff_stock?.total_defec ?? "-"}
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <button
-                                                                className="btn btn-sm btn-primary me-2"
-                                                                onClick={() => handleInbound(stuff)}
-                                                            >
-                                                                <i className="bi bi-plus"></i>
-                                                            </button>
-                                                            <button
-                                                                className="btn btn-sm btn-info me-2"
-                                                                onClick={() => handleEdit(stuff)}
-                                                            >
-                                                                <i className="bi bi-pencil"></i>
-                                                            </button>
-                                                            <button
-                                                                className="btn btn-sm btn-danger"
-                                                                onClick={() => handleDelete(stuff)}
-                                                            >
-                                                                <i className="bi bi-trash"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <h1>Categories List</h1>
+                <div>
+                    <button className="btn btn-primary me-2" onClick={() => { setMode('create'); setModalOpen(true) }}>
+                        <i className="bi bi-plus-circle me-2" />Add New Category
+                    </button>
+                    <button className="btn btn-success" onClick={exportExcel}>Export</button>
                 </div>
             </div>
 
-            <Modal
-                isOpen={modalOpen}
-                onClose={closeModal}
-                title={
-                    mode === 'delete'
-                        ? "Delete Category"
-                        : mode === 'edit'
-                            ? "Edit Category"
-                            : "Add New Category"
-                }
-            >
-                {error && <div className="alert alert-danger">{error.message}</div>}
+            <input
+                type="text"
+                className="form-control mb-3"
+                placeholder="Search category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
 
+            <div className="card">
+                <div className="card-body table-responsive">
+                    <table className="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>No</th><th>Name</th><th className="text-center">Available</th><th className="text-center">Defect</th><th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.length === 0 ? (
+                                <tr><td colSpan="5" className="text-center">No categories found</td></tr>
+                            ) : filtered.map((s, i) => (
+                                <tr key={s.id}>
+                                    <td>{i + 1}</td>
+                                    <td>{s.name || '-'}</td>
+                                    <td className="text-center">{s.stuff_stock?.total_available ?? '-'}</td>
+                                    <td className="text-center text-danger">
+                                        {s.stuff_stock?.total_defec ?? '-'}
+                                    </td>
+                                    <td>
+                                        <button className="btn btn-sm btn-primary me-2" onClick={() => handleInbound(s)}><i className="bi bi-plus" /></button>
+                                        <button className="btn btn-sm btn-info me-2" onClick={() => handleEdit(s)}><i className="bi bi-pencil" /></button>
+                                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}><i className="bi bi-trash" /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Category Modal */}
+            <Modal isOpen={modalOpen} onClose={closeModal} title={`${mode === 'edit' ? 'Edit' : mode === 'delete' ? 'Delete' : 'Add'} Category`}>
+                {error && <div className="alert alert-danger">{error.message}</div>}
                 {mode === 'delete' ? (
-                    <div>
-                        <p className="fw-bold text-danger">
-                            Are you sure you want to delete "{formData.name}"?
-                        </p>
+                    <>
+                        <p className="text-danger fw-bold">Delete "{formData.name}"?</p>
                         <div className="d-flex gap-2">
                             <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
                             <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
                         </div>
-                    </div>
+                    </>
                 ) : (
                     <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label className="form-label">
-                                Name <span className="text-danger">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="name"
-                                className="form-control mb-2"
-                                value={formData.name}
-                                onChange={handleChange}
-                            />
-                            <label className="form-label">Type</label>
-                            <select
-                                name="type"
-                                className="form-select mb-3"
-                                value={formData.type || ''}
-                                onChange={handleChange}
-                            >
-                                <option value="" disabled>Select</option>
-                                <option value="HTL/KLN">HTL/KLN</option>
-                                <option value="Lab">Lab</option>
-                                <option value="Sarpras">Sarpras</option>
-                            </select>
-
-                            <div className="d-flex gap-2">
-                                <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn btn-primary">
-                                    {mode === 'edit' ? 'Update' : 'Add'}
-                                </button>
-                            </div>
+                        <label>Name <span className="text-danger">*</span></label>
+                        <input type="text" name="name" className="form-control mb-2" value={formData.name} onChange={handleChange} required />
+                        <label>Type</label>
+                        <select name="type" className="form-select mb-3" value={formData.type} onChange={handleChange}>
+                            <option value="">Select</option>
+                            <option value="HTL/KLN">HTL/KLN</option>
+                            <option value="Lab">Lab</option>
+                            <option value="Sarpras">Sarpras</option>
+                        </select>
+                        <div className="d-flex gap-2">
+                            <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+                            <button type="submit" className="btn btn-primary">{mode === 'edit' ? 'Update' : 'Add'}</button>
                         </div>
                     </form>
                 )}
             </Modal>
 
-            <Modal
-                isOpen={isModalInbound}
-                onClose={() => setIsModalInbound(false)}
-                title={`Add Stock Inbound`}
-            >
+            {/* Inbound Modal */}
+            <Modal isOpen={isInboundModal} onClose={() => setInboundModal(false)} title="Add Stock Inbound">
                 {error && <div className="alert alert-danger">{error.message}</div>}
-
                 <form onSubmit={handleSubmitInbound}>
-                    <div className="form-group">
-                        <label className="form-label">
-                            Add Quantity <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            name="total"
-                            className="form-control mb-3"
-                            value={formInbound.total}
-                            onChange={(e) => setFormInbound({ ...formInbound, total: e.target.value })}
-                            min="1"
-                            required
-                        />
-
-                        <label className="form-label">
-                            Proof File <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="file"
-                            name="proof_file"
-                            className="form-control mb-3"
-                            onChange={(e) => setFormInbound({ ...formInbound, proof_file: e.target.files[0] })}
-                            accept="image/*,.pdf"
-                            required
-                        />
-
-                        <div className="d-flex gap-2">
-                            <button type="button" className="btn btn-secondary" onClick={() => setIsModalInbound(false)}>
-                                Cancel
-                            </button>
-                            <button type="submit" className="btn btn-primary">
-                                Add Stock
-                            </button>
-                        </div>
+                    <label>Quantity <span className="text-danger">*</span></label>
+                    <input type="number" className="form-control mb-2" min="1" value={formInbound.total} onChange={(e) => setFormInbound({ ...formInbound, total: e.target.value })} required />
+                    <label>Proof File <span className="text-danger">*</span></label>
+                    <input type="file" className="form-control mb-3" accept="image/*,.pdf" onChange={(e) => setFormInbound({ ...formInbound, proof_file: e.target.files[0] })} required />
+                    <div className="d-flex gap-2">
+                        <button type="button" className="btn btn-secondary" onClick={() => setInboundModal(false)}>Cancel</button>
+                        <button type="submit" className="btn btn-primary">Add Stock</button>
                     </div>
                 </form>
             </Modal>
-        </>
+        </div>
     )
 }
