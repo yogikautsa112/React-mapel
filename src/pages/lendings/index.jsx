@@ -1,139 +1,66 @@
-import axios from 'axios'
 import React, { useEffect, useState } from 'react'
-// import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { API_URL } from '../../constant'
 import Modal from '../../components/Modal'
 
 export const Lendings = () => {
     const [stuffs, setStuffs] = useState([])
-    const [error, setError] = useState(false)
     const [loading, setLoading] = useState(false)
     const [modalOpen, setModalOpen] = useState(false)
     const [selectedStuff, setSelectedStuff] = useState(null)
+    const [formData, setFormData] = useState({ name: '', quantity: 0, note: '' })
     const [alert, setAlert] = useState({ show: false, message: '', type: '' })
-    const [formData, setFormData] = useState({
-        name: '',
-        quantity: '',
-        note: ''
-    })
-
-    // const navigate = useNavigate()
 
     useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true)
+            try {
+                const res = await axios.get(`${API_URL}/stuffs`)
+                setStuffs(res.data.data || [])
+            } catch (err) {
+                if (err.response?.status === 401) {
+                    localStorage.removeItem('token')
+                    window.location.href = '/login'
+                }
+                setAlert({ show: true, message: 'Failed to fetch data', type: 'danger' })
+            } finally {
+                setLoading(false)
+            }
+        }
         fetchData()
     }, [])
-
-    const fetchData = () => {
-        setLoading(true)
-        axios.get(`${API_URL}/stuffs`)
-            .then(res => {
-                setStuffs(res.data.data || [])
-            })
-            .catch(err => {
-                if(err.response?.status === 401) {
-                    localStorage.removeItem('token');
-                    window.location.href = '/login';
-                }
-                console.error('Error fetching data:', err)
-                setError(err)
-            })
-            .finally(() => setLoading(false))
-    }
-
-    const addLendings = async (data) => {
-        try {
-            // First create the lending with proper data structure
-            const lendingData = {
-                stuff_id: data.stuff_id,
-                name: data.name,
-                notes: data.note,
-                total_stuff: parseInt(data.quantity),
-            }
-
-            await axios.post(`${API_URL}/lendings`, lendingData)
-            
-            // Then update the stuff stock
-            await axios.patch(`${API_URL}/stuffs/${data.stuff_id}`, {
-                total_available: selectedStuff.stuff_stock.total_available - data.quantity
-            })
-
-            // Update the local state directly
-            setStuffs(prevStuffs => prevStuffs.map(stuff => {
-                if (stuff.id === data.stuff_id) {
-                    return {
-                        ...stuff,
-                        stuff_stock: {
-                            ...stuff.stuff_stock,
-                            total_available: stuff.stuff_stock.total_available - data.quantity
-                        }
-                    }
-                }
-                return stuff
-            }))
-            
-            setModalOpen(false)
-        } catch (error) {
-            setError(error)
-            setAlert({
-                show: true,
-                message: error.response?.data?.message || 'Failed to add lending',
-                type: 'danger'
-            })
-        }
-    }
-
-    if (loading) {
-        return (
-            <div className="d-flex justify-content-center mt-5">
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        )
-    }
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }))
-    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (!selectedStuff) return
 
+        if (formData.quantity > selectedStuff.stuff_stock.total_available) {
+            setAlert({ show: true, message: 'Quantity exceeds stock', type: 'danger' })
+            return
+        }
+
         try {
-            const data = {
-                ...formData,
+            await axios.post(`${API_URL}/lendings`, {
                 stuff_id: selectedStuff.id,
-                quantity: parseInt(formData.quantity)
-            }
-
-            if (data.quantity > selectedStuff.stuff_stock.total_available) {
-                setAlert({
-                    show: true,
-                    message: 'Quantity exceeds available stock!',
-                    type: 'danger'
-                })
-                return
-            }
-
-            await addLendings(data)
-            setAlert({
-                show: true,
-                message: 'Lending added successfully!',
-                type: 'success'
+                name: formData.name,
+                notes: formData.note,
+                total_stuff: formData.quantity,
             })
-            setFormData({ name: '', quantity: '', note: '' })
+
+            await axios.patch(`${API_URL}/stuffs/${selectedStuff.id}`, {
+                ...selectedStuff,
+                total_available: selectedStuff.stuff_stock.total_available - formData.quantity,
+            })
+
+            setFormData({ name: '', quantity: 0, note: '' })
             setModalOpen(false)
-        } catch (error) {
-            setAlert({
-                show: true,
-                message: error.response?.data?.message || 'Failed to add lending',
-                type: 'danger'
-            })
+            setAlert({ show: true, message: 'Lending added!', type: 'success' })
+
+            const updatedRes = await axios.get(`${API_URL}/stuffs`)
+            setStuffs(updatedRes.data.data || [])
+        } catch (err) {
+            console.error(err)
+            setAlert({ show: true, message: 'Failed to add lending', type: 'danger' })
         }
     }
 
@@ -141,37 +68,47 @@ export const Lendings = () => {
         <>
             {alert.show && (
                 <div className="container mt-3">
-                    <div className={`alert alert-${alert.type} alert-dismissible fade show py-3 px-4`} role="alert">
-                        {alert.message}
-                        <button type="button" className="btn-close" onClick={() => setAlert({ show: false })}></button>
+                    <div className={`alert alert-${alert.type} alert-dismissible fade show d-flex justify-content-between align-items-center`}>
+                        <span>{alert.message}</span>
+                        <button 
+                            type="button" 
+                            className="btn-close" 
+                            onClick={() => setAlert({ show: false })}
+                        ></button>
                     </div>
                 </div>
             )}
 
-            <div className="container">
-                <div className='row g-4 my-5'>
-                    {stuffs.map((stuff) => (
-                        <div key={stuff.id} className="col-md-4">
-                            <div className="card h-100">
-                                <div className="card-body text-center">
-                                    <h5 className="card-title mb-3">{stuff.name}</h5>
-                                    <p className="card-text">
-                                        Total Available: {stuff.stuff_stock?.total_available || 0}
-                                    </p>
-                                    <button
-                                        className='btn btn-outline-primary'
-                                        disabled={!stuff.stuff_stock?.total_available}
-                                        onClick={() => {
-                                            setSelectedStuff(stuff)
-                                            setModalOpen(true)
-                                        }}
-                                    >
-                                        {stuff.stuff_stock?.total_available > 0 ? "Select" : "Stock Not Available"}
-                                    </button>
-                                </div>
+            <div className="container my-5">
+                <div className="row g-4">
+                    {loading ? (
+                        <div className="d-flex justify-content-center">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading...</span>
                             </div>
                         </div>
-                    ))}
+                    ) : (
+                        stuffs.map((stuff) => (
+                            <div key={stuff.id} className="col-md-4">
+                                <div className="card h-100 text-center">
+                                    <div className="card-body">
+                                        <h5>{stuff.name}</h5>
+                                        <p>Available: {stuff.stuff_stock?.total_available || 0}</p>
+                                        <button
+                                            className="btn btn-outline-primary"
+                                            disabled={!stuff.stuff_stock?.total_available}
+                                            onClick={() => {
+                                                setSelectedStuff(stuff)
+                                                setModalOpen(true)
+                                            }}
+                                        >
+                                            {stuff.stuff_stock?.total_available ? 'Select' : 'Out of Stock'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -180,59 +117,38 @@ export const Lendings = () => {
                 onClose={() => {
                     setModalOpen(false)
                     setSelectedStuff(null)
-                    setFormData({ name: '', quantity: '', note: '' })
+                    setFormData({ name: '', quantity: 0, note: '' })
                 }}
                 title={`Add Lending - ${selectedStuff?.name || ''}`}
             >
-                {error && <div className="alert alert-danger">{error.message}</div>}
-
                 <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label className="form-label">
-                            Name <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            className="form-control mb-3"
-                            required
-                        />
-
-                        <label className="form-label">
-                            Quantity <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            name="quantity"
-                            value={formData.quantity}
-                            onChange={handleInputChange}
-                            min="1"
-                            max={selectedStuff?.stuff_stock?.total_available}
-                            className="form-control mb-3"
-                            required
-                        />
-
-                        <label className='form-label'>
-                            Note
-                        </label>
-                        <textarea
-                            name="note"
-                            value={formData.note}
-                            onChange={handleInputChange}
-                            className="form-control mb-3"
-                            rows={3}
-                        ></textarea>
-
-                        <div className="d-flex gap-2">
-                            <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
-                                Cancel
-                            </button>
-                            <button type="submit" className="btn btn-primary">
-                                Add Lending
-                            </button>
-                        </div>
+                    <input
+                        type="text"
+                        placeholder="Name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="form-control mb-3"
+                        required
+                    />
+                    <input
+                        type="number"
+                        placeholder="Quantity"
+                        value={formData.quantity}
+                        onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                        className="form-control mb-3"
+                        min="1"
+                        max={selectedStuff?.stuff_stock?.total_available}
+                        required
+                    />
+                    <textarea
+                        placeholder="Note"
+                        value={formData.note}
+                        onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                        className="form-control mb-3"
+                    />
+                    <div className="d-flex gap-2">
+                        <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
+                        <button type="submit" className="btn btn-primary">Submit</button>
                     </div>
                 </form>
             </Modal>
