@@ -59,7 +59,10 @@ export const Lendings = () => {
             const updatedRes = await axios.get(`${API_URL}/stuffs`)
             setStuffs(updatedRes.data.data || [])
         } catch (err) {
-            console.error(err)
+            if (err.response?.status === 401) {
+                localStorage.removeItem('token')
+                window.location.href = '/login'
+            }
             setAlert({ show: true, message: 'Failed to add lending', type: 'danger' })
         }
     }
