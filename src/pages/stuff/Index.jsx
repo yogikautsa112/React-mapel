@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { API_URL } from '../../constant'
 import Modal from '../../components/Modal'
+import * as XSLX from "xlsx"
+import { saveAs } from 'file-saver'
 
 export default function StuffIndex() {
     const [stuffs, setStuffs] = useState([])
@@ -19,6 +21,7 @@ export default function StuffIndex() {
         proof_file: null
     })
     const [isModalInbound, setIsModalInbound] = useState(false)
+    const [searchTerm, setSearchTerm] = useState('')
 
     const navigate = useNavigate()
 
@@ -27,9 +30,16 @@ export default function StuffIndex() {
     }, [])
 
     const fetchStuffs = () => {
+        setLoading(true)
         axios.get(`${API_URL}/stuffs`)
-            .then(res => setStuffs(res.data.data))
-            .catch(setError)
+            .then(res => {
+                console.log('API Response:', res.data)
+                setStuffs(res.data.data || [])
+            })
+            .catch(err => {
+                console.error('Error fetching data:', err)
+                setError(err)
+            })
             .finally(() => setLoading(false))
     }
 
@@ -91,7 +101,6 @@ export default function StuffIndex() {
         setIsModalInbound(true)
     }
 
-    // Update handleSubmitInbound to only include Content-Type header
     const handleSubmitInbound = (e) => {
         e.preventDefault()
         const formData = new FormData()
@@ -113,6 +122,10 @@ export default function StuffIndex() {
             .catch(err => handleRequestError(err, 'add inbound'))
     }
 
+    const filteredStuffs = stuffs.filter(stuff =>
+        stuff.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
     const closeModal = () => {
         setModalOpen(false)
         setFormData({ id: null, name: '', type: '' })
@@ -129,6 +142,28 @@ export default function StuffIndex() {
             setError({ message: err.response?.data?.message || `Failed to ${action} category` })
         }
     }
+
+    const exportExcel = () => {
+        const formData = stuffs.map((stuff, index) => ({
+            No: index + 1,
+            Title: stuff.name,
+            Type: stuff.type,
+            TotalAvailable: stuff.stuff_stock?.total_available || 0,
+            TotalDefec: stuff.stuff_stock?.total_defec || 0
+        }));
+
+        const worksheet = XSLX.utils.json_to_sheet(formData);
+        const workbook = XSLX.utils.book_new();
+        XSLX.utils.book_append_sheet(workbook, worksheet, "Categories");
+
+        // Generate buffer
+        const excelBuffer = XSLX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+        // Create blob and save file
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, 'categories.xlsx');
+    }
+
 
     if (loading) {
         return (
@@ -151,18 +186,33 @@ export default function StuffIndex() {
                 )}
 
                 <div className="row mb-4">
-                    <div className="col-12 d-flex justify-content-between align-items-center">
+                    <div className="col-15 d-flex justify-content-between align-items-center">
                         <h1>Categories List</h1>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => {
-                                setMode('create')
-                                setModalOpen(true)
-                            }}
-                        >
-                            <i className="bi bi-plus-circle me-2"></i>
-                            Add New Category
-                        </button>
+                        <div className="d-flex">
+                            <button
+                                className="btn btn-primary me-2"
+                                onClick={() => {
+                                    setMode('create')
+                                    setModalOpen(true)
+                                }}
+                            >
+                                <i className="bi bi-plus-circle me-2"></i>
+                                Add New Category
+                            </button>
+                            <button className='btn btn-success' onClick={exportExcel}>Export</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="row mb-4">
+                    <div className="col-md-4">
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Search category..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </div>
 
@@ -185,21 +235,21 @@ export default function StuffIndex() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {stuffs.length === 0 ? (
+                                            {filteredStuffs.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="5" className="text-center">No categories found</td>
                                                 </tr>
                                             ) : (
-                                                stuffs.map((stuff, index) => (
+                                                filteredStuffs.map((stuff, index) => (
                                                     <tr key={stuff.id}>
                                                         <td>{index + 1}</td>
-                                                        <td>{stuff.name}</td>
+                                                        <td>{stuff.name || '-'}</td>
                                                         <td className="text-center">
-                                                            {stuff.stuff_stock?.total_available || "-"}
+                                                            {stuff.stuff_stock?.total_available ?? "-"}
                                                         </td>
                                                         <td className="text-center">
                                                             <span className={stuff.stuff_stock?.total_defec < 3 ? 'text-danger' : ''}>
-                                                                {stuff.stuff_stock?.total_defec || "-"}
+                                                                {stuff.stuff_stock?.total_defec ?? "-"}
                                                             </span>
                                                         </td>
                                                         <td>

@@ -8,19 +8,25 @@ export default function Login() {
         username: "",
         password: ""
     });
-    const [error, setError] = useState([]);
+    const [error, setError] = useState(null);
     let navigate = useNavigate();
 
     function LoginProcess(e) {
         e.preventDefault();
+        setError(null);
+        
         axios.post(API_URL + '/login', login)
             .then(res => {
                 localStorage.setItem('access_token', res.data.data.access_token);
                 localStorage.setItem('user', JSON.stringify(res.data.data.user));
-                navigate('/dashboard');
+                navigate('/dashboard'); // Changed to root path since Dashboard is there
             })
             .catch(err => {
-                setError(err.response.data);
+                if (err.response?.data) {
+                    setError(err.response.data);
+                } else {
+                    setError({ message: 'Failed to connect to server' });
+                }
             });
     }
 
@@ -28,23 +34,24 @@ export default function Login() {
         <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
             <form className="card shadow-lg border-0" style={{ maxWidth: "400px", width: "90%" }} onSubmit={LoginProcess}>
                 <div className="card-header bg-primary text-white text-center py-3">
-                    <h4 className="mb-0">Login</h4>
+                    <h4 className="mb-0">
+                        <i className="bi bi-box-seam me-2"></i>
+                        Inventory Login
+                    </h4>
                 </div>
-                {
-                    Object.keys(error).length > 0 && (
-                        <div className="alert alert-danger m-3 mb-0">
-                            <ul className="mb-0">
-                                {
-                                    Object.entries(error.data).length > 0 
-                                        ? Object.entries(error.data).map(([key, value], index) => (
-                                            <li key={`error-${key}-${index}`}>{value}</li>
-                                        )) 
-                                        : <li key="error-message">{error.message}</li>
-                                }
-                            </ul>
-                        </div>
-                    )
-                }
+                {error && (
+                    <div className="alert alert-danger m-3 mb-0">
+                        <ul className="mb-0">
+                            {error.data ? (
+                                Object.entries(error.data).map(([key, value]) => (
+                                    <li key={key}>{value}</li>
+                                ))
+                            ) : (
+                                <li>{error.message}</li>
+                            )}
+                        </ul>
+                    </div>
+                )}
                 <div className="card-body p-4">
                     <div className="mb-4">
                         <label className="form-label text-muted">Username</label>

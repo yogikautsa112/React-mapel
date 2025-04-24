@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { API_URL } from '../../../constant'
 import Modal from '../../../components/Modal'
+import * as XSLX from "xlsx"
+import { saveAs } from 'file-saver'
 
 export default function InboundIndex() {
     const [stuffs, setStuffs] = useState([])
@@ -15,17 +17,17 @@ export default function InboundIndex() {
     useEffect(() => {
         fetchStuffs()
     }, [])
-    
+
     const fetchStuffs = () => {
         setLoading(true)
         setError(null)
         axios.get(`${API_URL}/inbound-stuffs`)
-        .then(res => {
-            const data = res.data.data
-            setStuffs(data)
-        })
-        .catch(err => setError(err))
-        .finally(() => setLoading(false))
+            .then(res => {
+                const data = res.data.data
+                setStuffs(data)
+            })
+            .catch(err => setError(err))
+            .finally(() => setLoading(false))
     }
 
     const handleDelete = (inbound) => {
@@ -48,16 +50,38 @@ export default function InboundIndex() {
             })
     }
 
-    if (loading) {
-        return (
-            <div className="d-flex justify-content-center mt-5">
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        )
+    const [imageModalOpen, setImageModalOpen] = useState(false)
+    const [previewImage, setPreviewImage] = useState(null)
+
+    const handleImagePreview = (e, imageUrl) => {
+        e.preventDefault()
+        setPreviewImage(imageUrl)
+        setImageModalOpen(true)
     }
 
+    const exportExcel = () => {
+        const formData = stuffs.map((inbound, index) => ({
+            No: index + 1,
+            Category: inbound.stuff?.name || '-',
+            TotalNewItem: inbound.total || 0,
+            ProofFile: inbound.proof_file || '-',
+            CreatedAt: new Date(inbound.created_at).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            })
+        }));
+
+        const worksheet = XSLX.utils.json_to_sheet(formData);
+        const workbook = XSLX.utils.book_new();
+        XSLX.utils.book_append_sheet(workbook, worksheet, "Inbound History");
+
+        const excelBuffer = XSLX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, 'inbound-history.xlsx');
+    }
+
+    // Update the header section in return
     return (
         <>
             <div className="container mt-4">
@@ -69,11 +93,14 @@ export default function InboundIndex() {
                 )}
 
                 <div className="row mb-4">
-                    <div className="col-12">
+                    <div className="col-12 d-flex justify-content-between align-items-center">
                         <h1>Inbound History</h1>
+                        <button className="btn btn-success" onClick={exportExcel}>
+                            <i className="bi bi-file-excel me-2"></i>
+                            Export Excel
+                        </button>
                     </div>
                 </div>
-
                 <div className="row">
                     <div className="col-12">
                         <div className="card">
@@ -103,8 +130,8 @@ export default function InboundIndex() {
                                                         <td>
                                                             {inbound.proof_file && (
                                                                 <a
-                                                                    href={inbound.proof_file}
-                                                                    target="_blank"
+                                                                    href="#"
+                                                                    onClick={(e) => handleImagePreview(e, inbound.proof_file)}
                                                                     rel="noopener noreferrer"
                                                                 >
                                                                     <img
@@ -120,6 +147,24 @@ export default function InboundIndex() {
                                                                 </a>
                                                             )}
                                                         </td>
+                                                        <Modal
+                                                            isOpen={imageModalOpen}
+                                                            onClose={() => setImageModalOpen(false)}
+                                                            title="Image Preview"
+                                                        >
+                                                            <div className="text-center">
+                                                                <img
+                                                                    src={previewImage}
+                                                                    alt="Preview"
+                                                                    style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+                                                                    className="img-fluid"
+                                                                    onError={(e) => {
+                                                                        e.target.onerror = null;
+                                                                        e.target.src = 'https://placehold.co/400x400?text=No+Image';
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </Modal>
                                                         <td>
                                                             <button
                                                                 className="btn btn-sm btn-danger"
@@ -151,6 +196,20 @@ export default function InboundIndex() {
                 {error && <div className="alert alert-danger">{error.message}</div>}
 
                 <div>
+                    {selectedInbound?.proof_file && (
+                        <div className="text-center mb-3">
+                            <img
+                                src={selectedInbound.proof_file}
+                                alt="Proof"
+                                style={{ maxWidth: '100%', height: 'auto', maxHeight: '200px', objectFit: 'contain' }}
+                                className="img-thumbnail"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = 'https://placehold.co/200x200?text=No+Image';
+                                }}
+                            />
+                        </div>
+                    )}
                     <p className="fw-bold text-danger">
                         Are you sure you want to delete this inbound record?
                     </p>

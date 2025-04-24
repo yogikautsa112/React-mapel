@@ -1,11 +1,11 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 export default function Navbar() {
   let navigate = useNavigate();
   const isAuthenticated = localStorage.getItem("access_token") !== null;
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   function logoutHandler() {
     localStorage.removeItem("access_token");
@@ -16,7 +16,7 @@ export default function Navbar() {
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow p-0">
       <div className="container-fluid px-4">
-        <Link to="/" className="navbar-brand d-flex align-items-center py-2">
+        <Link to={isAuthenticated ? "/dashboard" : "/login"} className="navbar-brand d-flex align-items-center py-2">
           <i className="bi bi-box-seam me-2"></i>
           Inventaris
         </Link>
@@ -35,30 +35,56 @@ export default function Navbar() {
           <ul className="navbar-nav ms-auto">
             {isAuthenticated ? (
               <>
-                <li className="nav-item">
-                  <Link to="/dashboard" className="nav-link px-3 py-2">
-                    <i className="bi bi-speedometer2 me-1"></i>
-                    Dashboard
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link to="/profile" className="nav-link px-3 py-2">
-                    <i className="bi bi-person-circle me-1"></i>
-                    Profile
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link to="/stuff" className="nav-link px-3 py-2">
-                    <i className="bi bi-card-list me-1"></i>
-                    Stuffs
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link to="/inbound-stuff" className="nav-link px-3 py-2">
-                    <i className="bi bi-android me-1"></i>
-                    Inbound
-                  </Link>
-                </li>
+                {user.role === 'admin' && (
+                  <>
+                    <li className="nav-item">
+                      <Link to="/dashboard" className="nav-link px-3 py-2">
+                        <i className="bi bi-speedometer2 me-1"></i>
+                        Dashboard
+                      </Link>
+                    </li>
+                    <li className="nav-item">
+                      <Link to="/dashboard/admin/stuff" className="nav-link px-3 py-2">
+                        <i className="bi bi-card-list me-1"></i>
+                        Stuffs
+                      </Link>
+                    </li>
+                    <li className="nav-item">
+                      <Link to="/dashboard/admin/inbound" className="nav-link px-3 py-2">
+                        <i className="bi bi-box-arrow-in me-1"></i>
+                        Inbounds
+                      </Link>
+                    </li>
+                  </>
+                )}
+
+                {user.role === 'staff' && (
+                  <li className="nav-item dropdown">
+                    <a
+                      className="nav-link dropdown-toggle px-3 py-2"
+                      href="#"
+                      role="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      <i className="bi bi-box-arrow-in me-1"></i>
+                      Lendings
+                    </a>
+                    <ul className="dropdown-menu dropdown-menu-dark">
+                      <li>
+                        <Link to="/dashboard/staff/lending" className="dropdown-item">
+                          <i className="bi bi-plus-circle me-2"></i>New
+                        </Link>
+                      </li>
+                      <li>
+                        <Link to="/dashboard/staff/lending" className="dropdown-item">
+                          <i className="bi bi-table me-2"></i>Data
+                        </Link>
+                      </li>
+                    </ul>
+                  </li>
+                )}
+
                 <li className="nav-item">
                   <button
                     className="nav-link btn btn-link px-3 py-2"
