@@ -11,36 +11,39 @@ export default function Data() {
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
     const [alert, setAlert] = useState({ show: false, message: '', type: '' })
-    const [detailLending, setDetailLending] = useState(lendings[0])
+    const [detailLending, setDetailLending] = useState(null)
     const [formData, setFormData] = useState({
         lending_id: '',
         total_good_stuff: 0,
         total_defec_stuff: 0,
+        date: ''
     })
 
     const navigate = useNavigate()
 
     useEffect(() => {
-        const fetchData = () => {
-            setIsLoading(true)
-            axios.get(`${API_URL}/lendings`)
-                .then((res) => {
-                    setLendings(res.data.data || [])
-                    setIsLoading(false)
-                })
-                .catch((err) => {
-                    if (err.response?.status === 401) {
-                        localStorage.removeItem('access_token')
-                        localStorage.removeItem('user')
-                        navigate('/login')
-                    }
-                    setAlert({ show: true, message: 'Failed to fetch data', type: 'danger' })
-                    setIsLoading(false)
-                })
-        }
         fetchData()
     }, [])
+
+    const fetchData = () => {
+        setIsLoading(true)
+        axios.get(`${API_URL}/lendings`)
+            .then((res) => {
+                setLendings(res.data.data || [])
+                setIsLoading(false)
+            })
+            .catch((err) => {
+                if (err.response?.status === 401) {
+                    localStorage.removeItem('access_token')
+                    localStorage.removeItem('user')
+                    navigate('/login')
+                }
+                setAlert({ show: true, message: 'Failed to fetch data', type: 'danger' })
+                setIsLoading(false)
+            })
+    }
 
     const handleBtnCreate = (lending) => {
         setDetailLending(lending)
@@ -51,15 +54,27 @@ export default function Data() {
         setIsModalOpen(true)
     }
 
+    const handleBtnDetail = (lending) => {
+        setDetailLending(lending)
+        setFormData({
+            lending_id: lending.id,
+            total_good_stuff: lending.restoration?.total_good_stuff || 0,
+            total_defec_stuff: lending.restoration?.total_defec_stuff || 0,
+            date: new Date(lending.restoration?.created_at).toLocaleDateString("id-ID", { dateStyle: "long" })
+        })
+        setIsDetailModalOpen(true)
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setIsLoading(true)
         try {
             await axios.post(`${API_URL}/restorations`, formData)
             setAlert({ show: true, message: 'Restoration created successfully', type: 'success' })
-            setDetailLending([])
+            setDetailLending(null)
             setIsLoading(false)
             setIsModalOpen(false)
+            fetchData()
         } catch (err) {
             if (err.response?.status === 401) {
                 localStorage.removeItem('access_token')
@@ -77,12 +92,11 @@ export default function Data() {
             Name: l.name,
             'Stuff Name': l.stuff?.name || '-',
             'Total Stuff': l.total_stuff || 0,
-            Notes: l.notes || '-',
-            Date: new Date(l.created_at).toLocaleDateString("id-ID", {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            })
+            DateOFLending: new Date(l.created_at).toLocaleDateString("id-ID", { dateStyle: "long" }),
+            RestorationStatus: l.restoration ? 'Restored' : '-',
+            RestorationTotalGoodStuff: l.restoration?.total_good_stuff || 0,
+            RestorationTotalDefecStuff: l.restoration?.total_defec_stuff || 0,
+            RestorationDate: l.restoration?.created_at ? new Date(l.restoration?.created_at).toLocaleDateString("id-ID", { dateStyle: "long" }) : '-'
         }))
         const sheet = XLSX.utils.json_to_sheet(data)
         const wb = XLSX.utils.book_new()
@@ -177,12 +191,18 @@ export default function Data() {
                                             <td className="px-4 text-center">
                                                 {
                                                     lending.restoration ? (
-                                                        <button className="btn btn-sm btn-success">
+                                                        <button
+                                                            className="btn btn-sm btn-success"
+                                                            onClick={() => handleBtnDetail(lending)}
+                                                        >
                                                             <i className="bi bi-check-circle me-2"></i>
                                                             Detail Restoration
                                                         </button>
                                                     ) : (
-                                                        <button className="btn btn-sm btn-primary" onClick={() => handleBtnCreate(lending)}>
+                                                        <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => handleBtnCreate(lending)}
+                                                        >
                                                             <i className="bi bi-plus-circle me-2"></i>
                                                             Create Restoration
                                                         </button>
@@ -198,6 +218,7 @@ export default function Data() {
                 </div>
             </div>
 
+            {/* Create Restoration Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
@@ -215,8 +236,10 @@ export default function Data() {
                             className="form-control"
                             id="total_good_stuff"
                             value={formData.total_good_stuff}
-                            onChange={(e) => setFormData({ ...formData, total_good_stuff: Number(e.target.value) })}
+                            onChange={(e) => setFormData({ ...formData, total_good_stuff: parseInt(e.target.value) })}
                             required
+                            min="0"
+                            max={detailLending?.total_stuff || 0}
                         />
                     </div>
                     <div className="mb-3">
@@ -226,14 +249,96 @@ export default function Data() {
                             className="form-control"
                             id="total_defec_stuff"
                             value={formData.total_defec_stuff}
-                            onChange={(e) => setFormData({ ...formData, total_defec_stuff: Number(e.target.value) })}
+                            onChange={(e) => setFormData({ ...formData, total_defec_stuff: parseInt(e.target.value) })}
                             required
+                            min="0"
+                            max={detailLending?.total_stuff || 0}
                         />
                     </div>
                     <div className="d-flex justify-content-end">
+                        <button type="button" className="btn btn-secondary me-2" onClick={() => setIsModalOpen(false)}>Cancel</button>
                         <button type="submit" className="btn btn-primary">Submit</button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Detail Modal */}
+            <Modal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                title="Detail Restoration"
+                size="md"
+            >
+                <div className="card border-0">
+                    <div className="card-body p-0">
+                        <div className="alert alert-info mb-4">
+                            Restoration details for lending <b>{detailLending?.name}</b>
+                        </div>
+
+                        <div className="row mb-4">
+                            <div className="col-md-6">
+                                <div className="mb-3">
+                                    <label className="form-label fw-bold text-muted small">Lending Information</label>
+                                    <div className="card bg-light">
+                                        <div className="card-body">
+                                            <p className="mb-1"><span className="fw-bold">Name:</span> {detailLending?.name}</p>
+                                            <p className="mb-1"><span className="fw-bold">Stuff:</span> {detailLending?.stuff?.name || '-'}</p>
+                                            <p className="mb-0"><span className="fw-bold">Total Lending:</span> {detailLending?.total_stuff || 0}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-md-6">
+                                <div className="mb-3">
+                                    <label className="form-label fw-bold text-muted small">Restoration Information</label>
+                                    <div className="card bg-light">
+                                        <div className="card-body">
+                                            <p className="mb-1"><span className="fw-bold">Date:</span> {formData.date}</p>
+                                            <p className="mb-0"><span className="fw-bold">Status:</span> <span className="badge bg-success">Completed</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="row mb-4">
+                            <div className="col-12">
+                                <label className="form-label fw-bold text-muted small">Return Summary</label>
+                                <div className="table-responsive">
+                                    <table className="table table-bordered">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th>Condition</th>
+                                                <th className="text-center">Quantity</th>
+                                                <th className="text-center">Percentage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Good Condition</td>
+                                                <td className="text-center">{detailLending?.restoration?.total_good_stuff || 0}</td>
+                                                <td className="text-center">
+                                                    {detailLending && detailLending.total_stuff > 0
+                                                        ? `${((detailLending.restoration?.total_good_stuff || 0) / detailLending.total_stuff * 100).toFixed(1)}%`
+                                                        : '0%'}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Defective Condition</td>
+                                                <td className="text-center">{detailLending?.restoration?.total_defec_stuff || 0}</td>
+                                                <td className="text-center">
+                                                    {detailLending && detailLending.total_stuff > 0
+                                                        ? `${((detailLending.restoration?.total_defec_stuff || 0) / detailLending.total_stuff * 100).toFixed(1)}%`
+                                                        : '0%'}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </Modal>
         </>
     )
