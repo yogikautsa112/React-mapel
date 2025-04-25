@@ -46,27 +46,30 @@ export default function Data() {
         setDetailLending(lending)
         setFormData({
             ...formData,
-            lending_id: lending.id,  // Use lending.id directly instead of detailLending.id
-            total_good_stuff: 0,
-            total_defec_stuff: 0,
-            notes: ''
+            lending_id: lending.id,
         })
         setIsModalOpen(true)
     }
 
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault()
-    //     setIsLoading(true)
-    //     try {
-    //         await axios.post(`${API_URL}/restorations`, formData)
-    //         setIsLoading(false)
-    //         setIsModalOpen(false)
-    //     } catch (err) {
-    //         setIsLoading(false)
-    //         setError(err.message)
-    //         setAlert({ show: true, message: 'Failed to create restoration', type: 'danger' })
-    //     }
-    // }
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        setIsLoading(true)
+        try {
+            await axios.post(`${API_URL}/restorations`, formData)
+            setAlert({ show: true, message: 'Restoration created successfully', type: 'success' })
+            setDetailLending([])
+            setIsLoading(false)
+            setIsModalOpen(false)
+        } catch (err) {
+            if (err.response?.status === 401) {
+                localStorage.removeItem('access_token')
+                localStorage.removeItem('user')
+                navigate('/login')
+            }
+            setIsLoading(false)
+            setAlert({ show: true, message: 'Failed to create restoration', type: 'danger' })
+        }
+    }
 
     const exportExcel = () => {
         const data = lendings.map((l, i) => ({
@@ -90,6 +93,10 @@ export default function Data() {
         saveAs(blob, 'lendings.xlsx')
     }
 
+    const dismissAlert = () => {
+        setAlert({ show: false, message: '', type: '' });
+    }
+
     if (isLoading) {
         return (
             <div className="d-flex justify-content-center align-items-center min-vh-100">
@@ -103,6 +110,17 @@ export default function Data() {
     return (
         <>
             <div className="container py-4">
+                {alert.show && (
+                    <div className={`alert alert-${alert.type} alert-dismissible fade show d-flex justify-content-between align-items-center`}>
+                        <span>{alert.message}</span>
+                        <button
+                            type="button"
+                            className="btn-close"
+                            onClick={dismissAlert}
+                        ></button>
+                    </div>
+                )}
+
                 {error && (
                     <div className="alert alert-danger alert-dismissible fade show d-flex justify-content-between align-items-center">
                         <span>{error}</span>
@@ -166,7 +184,7 @@ export default function Data() {
                                                     ) : (
                                                         <button className="btn btn-sm btn-primary" onClick={() => handleBtnCreate(lending)}>
                                                             <i className="bi bi-plus-circle me-2"></i>
-                                                            Crate Restoration
+                                                            Create Restoration
                                                         </button>
                                                     )
                                                 }
@@ -186,7 +204,7 @@ export default function Data() {
                 title="Create Restoration"
                 size="md"
             >
-                <form onSubmit={""}>
+                <form onSubmit={handleSubmit}>
                     <div className='alert alert-info'>
                         Lending <b>{detailLending?.name}</b> with total <b>{detailLending?.total_stuff}</b> stuff will be restored.
                     </div>
@@ -197,7 +215,7 @@ export default function Data() {
                             className="form-control"
                             id="total_good_stuff"
                             value={formData.total_good_stuff}
-                            onChange={(e) => setFormData({ ...formData, total_good_stuff: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, total_good_stuff: Number(e.target.value) })}
                             required
                         />
                     </div>
@@ -208,7 +226,7 @@ export default function Data() {
                             className="form-control"
                             id="total_defec_stuff"
                             value={formData.total_defec_stuff}
-                            onChange={(e) => setFormData({ ...formData, total_defec_stuff: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, total_defec_stuff: Number(e.target.value) })}
                             required
                         />
                     </div>
