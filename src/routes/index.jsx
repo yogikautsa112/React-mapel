@@ -8,6 +8,7 @@ import ProfilePage from "../pages/Profile"
 import AdminRoute from "../pages/middleware/AdminRoute";
 import StaffRoute from "../pages/middleware/StaffRoute";
 import { Lendings } from "../pages/lendings";
+import Data from "../pages/lendings/Data";
 
 const PrivateRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem("access_token") !== null;
@@ -56,6 +57,10 @@ export const router = createBrowserRouter([
           {
             path: "lending",
             element: <Lendings />
+          },
+          {
+            path: "lending/data",
+            element: <Data />
           }
         ]
       }

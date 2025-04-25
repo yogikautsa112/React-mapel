@@ -77,7 +77,7 @@ export default function Navbar() {
                         </Link>
                       </li>
                       <li>
-                        <Link to="/dashboard/staff/lending" className="dropdown-item">
+                        <Link to="/dashboard/staff/lending/data" className="dropdown-item">
                           <i className="bi bi-table me-2"></i>Data
                         </Link>
                       </li>
