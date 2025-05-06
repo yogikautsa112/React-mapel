@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../constant';
+import StockChart from '../components/StockChart';
 
 export default function Dashboard() {
     const [stats, setStats] = useState({
@@ -84,7 +85,7 @@ export default function Dashboard() {
                             </Link>
                         </li>
                         <li className="nav-item mb-2">
-                            <Link to="/dashboard/admin/profile" className="nav-link text-white">
+                            <Link to="/dashboard/profile" className="nav-link text-white">
                                 <i className="bi bi-person-circle me-2"></i>Profile
                             </Link>
                         </li>
@@ -150,9 +151,21 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Recent Activity */}
-                        <div className="col-12">
+                        {/* Chart Section */}
+                        <div className="col-md-6 mb-4">
                             <div className="card">
+                                <div className="card-header">
+                                    <h5 className="card-title mb-0">Inventory Overview</h5>
+                                </div>
+                                <div className="card-body">
+                                    <StockChart />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Recent Activity */}
+                        <div className="col-md-6 mb-4">
+                            <div className="card h-100">
                                 <div className="card-header">
                                     <h5 className="card-title mb-0">Recent Activity</h5>
                                 </div>
